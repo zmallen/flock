@@ -4,8 +4,5 @@ flock
 Project for Chaim/Zack
 
 
-pip install twython
-pip install gevent
+pip install twython gevent irc
 
-
-Help from: http://www.makeuseof.com/tag/how-to-build-a-raspberry-pi-twitter-bot/

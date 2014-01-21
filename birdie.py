@@ -1,18 +1,13 @@
 #!/usr/bin/python
 import gevent
 from twython import Twython, TwythonError
+from ircbot import IrcNodeHead
 
-class Bot:
-    def __init__(self, name, con_k, con_s, acc_k, acc_s, irc_serv, irc_chan):
+class TwitterBot:
+    def __init__(self, name, con_k, con_s, acc_k, acc_s):
         self.name = name
         self.con_k = con_k
         self.con_s = con_s
-        self.irc_serv = irc_serv
-        # default port
-        self.port = 6667
-        # check for : to change serv and port
-        if ":" in irc_serv:
-            self.irc_serv, self.port = irc_serv.split(":")
         self.acc_k = acc_k
         self.acc_s = acc_s
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
@@ -43,18 +38,25 @@ def main():
             irc_serv, irc_chan = irc_lines[0].split("=")[1].split(",")
             # spawn the bots, give them 45 seconds to connect to twitter then return the object 
             # we will wait and start the thread for irc as our main event loop
-            jobs = [ gevent.spawn(spawn_bots, line, irc_serv, irc_chan) for line in lines ]
+            jobs = [ gevent.spawn(spawn_bots, line) for line in lines ]
             gevent.joinall(jobs, timeout=45)
             # get all the twitter bots, will raise exception if oauth fails
-            bot_list = [ bot.value for bot in jobs ] 
+            bot_list = [ bot.value for bot in jobs ]
+            # join irc as a nodehead , this bot controls many twitter bots and runs campaigns for all
+            port = "6667"
+            if ":" in irc_serv:
+                irc_serv,port = irc_serv.split(":")
+            irc_bot = IrcNodeHead(irc_chan, name, irc_serv, port)
+            irc_bot.start()
+
         except Exception as e:
             #syslog.syslog(syslog.LOG_ERR, 'BIRDIE: ' + str(e))
             print "ERROR: " + str(e)
 
 # spawn bots given the config options, and return the object to jobs
-def spawn_bots(bot_line, irc_serv, irc_chan):
+def spawn_bots(bot_line):
     name, con_k, con_s, acc_k, acc_s = bot_line.split("=")[1].split(",")
-    return Bot(name, con_k, con_s, acc_k, acc_s, irc_serv, irc_chan)
+    return TwitterBot(name, con_k, con_s, acc_k, acc_s)
 
 if __name__ == "__main__":
     main()
