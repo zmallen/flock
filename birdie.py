@@ -2,7 +2,6 @@
 import gevent
 from twython import Twython, TwythonError
 from ircbot import IrcNodeHead
-from ircbot2 import TestBot
 
 class TwitterBot:
     def __init__(self, name, con_k, con_s, acc_k, acc_s):
@@ -48,7 +47,7 @@ def main():
         if ":" in irc_serv:
             print "in if: " + irc_serv
             irc_serv, port = irc_serv.split(":")
-        irc_bot = IrcNodeHead(irc_chan, "test", irc_serv, int(port))
+        irc_bot = IrcNodeHead(irc_chan, "test", irc_serv, int(port), bot_list)
         irc_bot.start()
         print irc_chan + " " + irc_serv + " " + str(port)
 
