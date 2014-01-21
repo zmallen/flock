@@ -2,6 +2,9 @@
 import gevent
 from twython import Twython, TwythonError
 from ircbot import IrcNodeHead
+import json
+import syslog
+import sys
 
 class TwitterBot:
     def __init__(self, name, con_k, con_s, acc_k, acc_s):
@@ -19,10 +22,17 @@ class TwitterBot:
                 msg = msg[0:139]
             self.twitter.update_status(status=msg)
 
+    def get_global_trends(self):
+        trends = self.twitter.get_place_trends(id=1)
+        ret = [ trend['name'] for trend in trends[0].get('trends') ]
+        return ','.join(ret)
+
 def main():
+    reload(sys)
+    sys.setdefaultencoding("utf-8")
     # get bot info
     with open('bots.csv', 'r') as bot_file:
-        #try:
+       # try:
         read_in = bot_file.readlines()
         # get lines and filter out comments or misconfigured lines
         lines = [ l.rstrip() for l in read_in if not l.startswith("#") and (l.startswith("bot=") or l.startswith("irc="))]
@@ -45,15 +55,13 @@ def main():
         # join irc as a nodehead , this bot controls many twitter bots and runs campaigns for all
         port = 6667
         if ":" in irc_serv:
-            print "in if: " + irc_serv
             irc_serv, port = irc_serv.split(":")
         irc_bot = IrcNodeHead(irc_chan, "test", irc_serv, int(port), bot_list)
         irc_bot.start()
-        print irc_chan + " " + irc_serv + " " + str(port)
-
-    #except Exception as e:
-        #syslog.syslog(syslog.LOG_ERR, 'BIRDIE: ' + str(e))
-        #print "ERROR: " + str(e)
+        #except Exception as e:
+         #   syslog.syslog(syslog.LOG_ERR, 'BIRDIE: ' + str(e))
+          #  print "ERROR: " + str(e)
+           # raise Exception(str(e))
 
 # spawn bots given the config options, and return the object to jobs
 def spawn_bots(bot_line):
