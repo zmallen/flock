@@ -17,9 +17,6 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def on_welcome(self, c, e):
         c.join(self.channel)
 
-    def on_privmsg(self, c, e):
-        self.do_command(e, e.arguments[0])
-
     def msg_channel(self, c, msg):
         if(len(msg) > 512):
             for chunk in self.chunk_msg(msg):
@@ -27,10 +24,11 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 c.privmsg(self.channel, chunk)
         else:
             c.privmsg(self.channel, msg)
+            
     # need a lazy generator here because irc wont take anything over 512 bytes / message        
     def chunk_msg(self, msg):
-        for i in xrange(0, len(msg), 512):
-            yield msg[i:i+512]
+        for i in xrange(0, len(msg), 511):
+            yield msg[i:i+511]
 
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(" ")
@@ -38,9 +36,11 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             msg = ''.join([b.name for b in self.bot_list])
             self.msg_channel(c, msg)
         elif a[0] == "?shorten":
-             if len(a) == 2:
+            if len(a) == 2:
                 url = a[1]
                 self.msg_channel(c, self.shorten(url))
+            else:
+                self.msg_channel(c, "usage: ?shorten url")
         elif a[0] == "?campaign":
             self.make_campaign(c, a)
         elif a[0] == "?gettrends":
@@ -50,16 +50,16 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         campaign = msg
         #?campaign all|botname url
         if(len(campaign) != 3):
-            c.privmsg(self.channel, "usage: ?campaign all|botname url")
+            self.msg_channel(c, "usage: ?campaign all|botname url")
             return
         campaign_type, url = campaign[1], campaign[2]
         # if its a campaign for all the bots this bot controls, generate a short url for each one
         if campaign_type == "all":
-            c.privmsg(self.channel, "starting all..")
+            self.msg_channel(c, "starting all..")
         else:
             # if its for a specific bot name, then check to see if this bot has that handle authenticated, then work
             if campaign_type not in self.bot_list:
-                c.privmsg(self.channel, "cannot find %s in bot_list" % campaign_type)
+                self.msg_channel(c, "cannot find %s in bot_list" % campaign_type)
                 return
 
     def shorten(self, url):
