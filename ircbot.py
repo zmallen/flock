@@ -3,12 +3,14 @@ import irc.strings
 import json
 import syslog
 import requests 
+import gevent
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def __init__(self, channel, nickname, server, port, bot_list):
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
         self.channel = channel
         self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
+        self.campaign_url = "http://www.google.com"
         self.bot_list = bot_list
 
     def on_nicknameinuse(self, c, e):
@@ -24,7 +26,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 c.privmsg(self.channel, chunk)
         else:
             c.privmsg(self.channel, msg)
-            
+
     # need a lazy generator here because irc wont take anything over 512 bytes / message        
     def chunk_msg(self, msg):
         for i in xrange(0, len(msg), 511):
@@ -33,7 +35,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(" ")
         if a[0] == "?botlist":
-            msg = ''.join([b.name for b in self.bot_list])
+            msg = ','.join([b.name for b in self.bot_list])
             self.msg_channel(c, msg)
         elif a[0] == "?shorten":
             if len(a) == 2:
@@ -45,22 +47,54 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             self.make_campaign(c, a)
         elif a[0] == "?gettrends":
             self.msg_channel(c, str(self.bot_list[0].get_global_trends()))
+        elif a[0] == "?tweet":
+            #?tweet botname msg
+            if len(a) >= 3:
+                bot = self.get_bot(a[1])
+                if bot:
+                    bot.tweet(' '.join(a[2:]))
+                    self.msg_channel(c, 'Tweeted on http://twitter.com/%s' % bot.name)
+                else:
+                    self.msg_channel(c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
+            else:
+                self.msg_channel(c, "usage: ?tweet botname msg")
 
     def make_campaign(self, c, msg):
         campaign = msg
         #?campaign all|botname url
-        if(len(campaign) != 3):
-            self.msg_channel(c, "usage: ?campaign all|botname url")
+        if(len(campaign) != 2):
+            self.msg_channel(c, "usage: ?campaign all|botname")
             return
-        campaign_type, url = campaign[1], campaign[2]
+        campaign_type = campaign[1]
         # if its a campaign for all the bots this bot controls, generate a short url for each one
         if campaign_type == "all":
             self.msg_channel(c, "starting all..")
+            # get unique shortened urls for each bot
+            urls = []
+            for i in range(len(self.bot_list)):
+                urls.append(self.shorten(self.campaign_url))
+            # create a dict of tuples of urls to bots
+            url_tuples = dict(zip(self.bot_list, urls))
+            # asynchronously post to twitter
+            jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
+            gevent.joinall(jobs, timeout=60)
+            # should log here: time start, time end, bot,url combos for tracking
+            self.msg_channel(c, "Campaign complete")
         else:
             # if its for a specific bot name, then check to see if this bot has that handle authenticated, then work
-            if campaign_type not in self.bot_list:
+            bot = self.get_bot(campaign_type)
+            if bot is None:
                 self.msg_channel(c, "cannot find %s in bot_list" % campaign_type)
                 return
+            # post single campaign
+            bot.post_campaign(self.shorten(self.campaign_url))
+
+    def get_bot(self, name):
+        bot = None
+        names = [b.name for b in self.bot_list]
+        if name in names:
+            bot = self.bot_list[names.index(name)]
+        return bot
 
     def shorten(self, url):
         payload = {'longUrl': url}

@@ -26,8 +26,12 @@ class TwitterBot:
         trends = self.twitter.get_place_trends(id=1)
         ret = [ trend['name'] for trend in trends[0].get('trends') ]
         return ','.join(ret)
-    def post_campaign(self, url):
 
+    # should we sleep here?
+    def post_campaign(self, url):
+        trends = self.get_global_trends().split(',')
+        for trend in trends:
+            self.tweet('%s %s' % (trend, url))
 
 def main():
     reload(sys)
@@ -46,7 +50,7 @@ def main():
                 raise Exception("Could not load IRC info from bot_file")
             # remove irc_line from lines
             map(lambda x: lines.remove(x), irc_lines)
-            irc_serv, irc_chan = irc_lines[0].split("=")[1].split(",")
+            irc_serv, irc_chan, irc_name = irc_lines[0].split("=")[1].split(",")
             # spawn the bots, give them 45 seconds to connect to twitter then return the object 
             # we will wait and start the thread for irc as our main event loop
             jobs = [ gevent.spawn(spawn_bots, line) for line in lines ]
@@ -57,7 +61,7 @@ def main():
             port = 6667
             if ":" in irc_serv:
                 irc_serv, port = irc_serv.split(":")
-            irc_bot = IrcNodeHead(irc_chan, "test", irc_serv, int(port), bot_list)
+            irc_bot = IrcNodeHead(irc_chan, irc_name, irc_serv, int(port), bot_list)
             irc_bot.start()
         except Exception as e:
             syslog.syslog(syslog.LOG_ERR, 'BIRDIE: ' + str(e))
