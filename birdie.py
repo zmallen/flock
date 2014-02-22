@@ -32,6 +32,7 @@ class TwitterBot:
         trends = self.get_global_trends().split(',')
         for trend in trends:
             self.tweet('%s %s' % (trend, url))
+            gevent.sleep(30)
 
 def main():
     reload(sys)
