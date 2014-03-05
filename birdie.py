@@ -27,12 +27,11 @@ class TwitterBot:
         ret = [ trend['name'] for trend in trends[0].get('trends') ]
         return ','.join(ret)
 
-    # should we sleep here?
     def post_campaign(self, url):
         trends = self.get_global_trends().split(',')
         for trend in trends:
             self.tweet('%s %s' % (trend, url))
-            gevent.sleep(30)
+            gevent.sleep(70)
 
 def main():
     reload(sys)

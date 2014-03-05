@@ -4,13 +4,14 @@ import json
 import syslog
 import requests 
 import gevent
+import string
+import random
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def __init__(self, channel, nickname, server, port, bot_list):
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
         self.channel = channel
         self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
-        self.campaign_url = "http://www.google.com"
         self.bot_list = bot_list
 
     def on_nicknameinuse(self, c, e):
@@ -59,25 +60,30 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             else:
                 self.msg_channel(c, "usage: ?tweet botname msg")
 
+    def random_char(self, y):
+        return ''.join(random.choice(string.ascii_letters) for x in range(y))
+
     def make_campaign(self, c, msg):
         campaign = msg
+        print campaign
         #?campaign all|botname url
-        if(len(campaign) != 2):
+        if(len(campaign) != 3):
             self.msg_channel(c, "usage: ?campaign all|botname")
             return
         campaign_type = campaign[1]
+        campaign_url = campaign[2]
         # if its a campaign for all the bots this bot controls, generate a short url for each one
         if campaign_type == "all":
             self.msg_channel(c, "starting all..")
             # get unique shortened urls for each bot
             urls = []
             for i in range(len(self.bot_list)):
-                urls.append(self.shorten(self.campaign_url))
+                urls.append(self.shorten(campaign_url))
             # create a dict of tuples of urls to bots
             url_tuples = dict(zip(self.bot_list, urls))
             # asynchronously post to twitter
             jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
-            gevent.joinall(jobs, timeout=60)
+            gevent.joinall(jobs, timeout=750)
             # should log here: time start, time end, bot,url combos for tracking
             self.msg_channel(c, "Campaign complete")
         else:
@@ -87,7 +93,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 self.msg_channel(c, "cannot find %s in bot_list" % campaign_type)
                 return
             # post single campaign
-            bot.post_campaign(self.shorten(self.campaign_url))
+            bot.post_campaign(self.shorten(campaign_url))
 
     def get_bot(self, name):
         bot = None
@@ -97,7 +103,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         return bot
 
     def shorten(self, url):
-        payload = {'longUrl': url}
+        payload = {'longUrl': url + "?" + self.random_char(5)}
         headers = {'content-type': 'application/json'}
         r = requests.post(self.post_url, data=json.dumps(payload), headers=headers)
         if 'id' in r.text:
