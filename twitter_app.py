@@ -16,7 +16,7 @@ def display():
 	#Create Twitter API instance	
 	twitter = Twython(app_key=API_KEY, app_secret=API_SECRET)
 	#Get auth url
-	auth = twitter.get_authentication_tokens(callback_url='http://127.0.0.1/twitterfinish')
+	auth = twitter.get_authentication_tokens(callback_url='http://54.186.196.187/twitterfinish')
 	#Save off token and secret for later use. Could be saved in cookies.
 	r.set("twitter:token", auth['oauth_token'])
 	r.set("twitter:secret", auth['oauth_token_secret'])
@@ -45,7 +45,7 @@ def finish():
 
 	#Display access_token and access_token_secret
 	#return "Token: %s <br> Secret: %s" % (last['oauth_token'], last['oauth_token_secret'])
-	return "%s" % (last)
+	return "Sucess!"
 
 if __name__ == '__main__':
-    app.run(debug=True, port=80)
+    app.run(host='0.0.0.0',debug=False, port=80)
