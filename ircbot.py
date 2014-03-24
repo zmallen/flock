@@ -83,7 +83,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             url_tuples = dict(zip(self.bot_list, urls))
             # asynchronously post to twitter
             jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
-            gevent.joinall(jobs, timeout=750)
+            gevent.joinall(jobs, timeout=901)
             # should log here: time start, time end, bot,url combos for tracking
             self.msg_channel(c, "Campaign complete")
         else:
