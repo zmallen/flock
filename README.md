@@ -27,11 +27,18 @@ Making your botnet Application
 Running flock
 ====
 Connect to channel and type these commands out:
+
 ?botlist -> shows current twitter profiles connected to that bot
+
 ?shorten url -> Replace URL with the URL you want to shorten, returns shortened url
+
 ?gettrends -> returns current global top 10 trends
+
 ?tweet botname msg -> Replace botname with bot that the app owns and msg with the message you want to tweet
+
 ?campaign all url -> Posts a campaign to ALL the bots that the app owns, and shortens URL given
+
 ?campaign botname url -> Posts a campaign to only botname, shortens URL given
+
 
 A *campaign* is when an app takes 1 or all of its bots and retrieves that current time's top 10 trends. It then generates a shortened URL for each bot, and then posts a tweet according with that hashtag from the top 10 trends. It then waits a pseudo-random time to tweet again. This is all done asynchronously so bots do not need to depend on each other.
