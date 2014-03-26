@@ -14,6 +14,7 @@ class TwitterBot:
         self.acc_k = acc_k
         self.acc_s = acc_s
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
+        self.last_tweet = ""
 
     def tweet(self,msg):
         if self.twitter is not None:
@@ -21,6 +22,7 @@ class TwitterBot:
             if len(msg) > 140:
                 msg = msg[0:139]
             self.twitter.update_status(status=msg)
+            self.last_tweet = msg
 
     def get_global_trends(self):
         trends = self.twitter.get_place_trends(id=1)
@@ -32,7 +34,6 @@ class TwitterBot:
         for trend in trends:
             self.tweet('%s %s' % (trend, url))
             gevent.sleep(random.randint(60,90))
-
 def main():
     reload(sys)
     sys.setdefaultencoding("utf-8")

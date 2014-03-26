@@ -3,8 +3,13 @@ flock
 
 Project for Chaim/Zack
 
-apt-get install libevent-dev python-dev
-pip install twython gevent irc flask redis
+*DEBIAN*
+apt-get install libevent-dev python-dev tmux
+pip install twython gevent irc flask redis greenclock TwitterAPI
+I use twython for tweeting / getitng events and TwitterAPI was best for getting twitter streams
+tmux
+python birdie.py
+python twitter_app.py
 
 
 Making your botnet Application

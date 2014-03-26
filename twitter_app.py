@@ -4,7 +4,6 @@ from flask import request
 from twython import Twython
 from redis import Redis
 
-
 app = Flask(__name__)
 r = Redis()
 
@@ -42,10 +41,7 @@ def finish():
 	# write out and update our csv file
 	with open("bots.csv", "a") as f:
 		f.write("bot=%s,%s,%s,%s,%s" % (bot_name, API_KEY, API_SECRET, access_key, access_secret))
-
-	#Display access_token and access_token_secret
-	#return "Token: %s <br> Secret: %s" % (last['oauth_token'], last['oauth_token_secret'])
-	return "Sucess!"
+	return "Success!"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=False, port=80)

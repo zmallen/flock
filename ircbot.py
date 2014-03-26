@@ -6,13 +6,30 @@ import requests
 import gevent
 import string
 import random
+import syslog
+from random import randint
+import greenclock
+from datetime import datetime, time, date
+from TwitterAPI import TwitterAPI
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
+
     def __init__(self, channel, nickname, server, port, bot_list):
         irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
+        self.nickname = nickname
         self.channel = channel
         self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
         self.bot_list = bot_list
+        # if its a weekday, tweet between 9 and 5 for a total of 5 times
+        # if its a weekend, tweet between 12 and 10 for a total of 7 times
+        self.scheduled_tweets = { 'weekday': { 'num_tweets':5, 'times':[8,17] }, 'weekend': { 'num_tweets':7, 'times':[12,10] } }
+        # start scheduler
+        scheduler = greenclock.Scheduler(logger_name='flocker')
+        scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
+        scheduler.run_forever(start_at='once')
+        # corpus of tweets from the day
+        self.twitter_corpus = []
+        self.max_tweets = 100
 
     def on_nicknameinuse(self, c, e):
         c.nick(c.get_nickname() + "_")
@@ -78,7 +95,12 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             # get unique shortened urls for each bot
             urls = []
             for i in range(len(self.bot_list)):
-                urls.append(self.shorten(campaign_url))
+                shortened = self.shorten(campaign_url)
+                if shortened.startswith('error'):
+                    self.msg_channel('error shortening %s -> %s' % (campaign_url, shortened))
+                    return
+                else:
+                    urls.append(shortened)
             # create a dict of tuples of urls to bots
             url_tuples = dict(zip(self.bot_list, urls))
             # asynchronously post to twitter
@@ -109,4 +131,57 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         if 'id' in r.text:
             return json.loads(r.text)['id'].rstrip()
         else:
-            return 'error processing ' + url
+            return 'error %s' % r
+
+    def look_human(self):
+        syslog.syslog('Looking human for %s' % self.nickname)
+        # build a streamer of a sample of tweets
+        self.build_streamer()
+        ## schedule each bot to tweet a random tweet pulled from corpus at random specified time depending on if its a weekday or not
+        # get todays date
+        today = date.today() 
+        # get whether its a weekday or weekend
+        week_type = self.get_weektime(today.weekday())
+        # get minimum datetime and maximum datetime to spawn intervals in between them
+        mintime = time(self.scheduled_tweets[week_type]['times'][0], 0)
+        mindt = datetime.combine(today, mintime)
+        maxtime = time(self.scheduled_tweets[week_type]['times'][1], 0)
+        maxdt = datetime.combine(today, maxtime)
+        # get each bot, and use gevent to spawn_later tasks based on the week_type with a random tweet
+        for bot in self.bot_list:
+           intervals = [ self.randtime(mindt, maxdt) for x in xrange(self.scheduled_tweets[week_type]['num_tweets']) ]
+           # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
+           # and then pull a random tweet from the corpus
+           map(lambda time: gevent.spawn_later(time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet), intervals)
+        # reset
+        self.twitter_corpus = []
+
+    def randtime(self, mindt, maxdt):
+        return randint(int(mindt.strftime('%s')), int(maxdt.strftime('%s')))
+
+    def get_weektime(self, weekdaynum):
+       return 'weekday' if weekdaynum < 5 else 'weekend' 
+
+    def build_streamer(self):
+        # choose a random bot to get stream from
+        bot = random.choice(self.bot_list)
+        bot_stream = TwitterAPI(bot.con_k, bot.con_s, bot.acc_k, bot.acc_s)
+        # get max_tweets tweets then stop
+        for tweet in self.stream(bot_stream):
+            self.build_corpus(tweet)
+            if len(self.twitter_corpus) >= max_tweets:
+                break
+
+    def stream(self, bot_stream):  
+        request = bot_stream.request("statuses/sample", {"language":"en:"})
+        return request.get_iterator()
+
+    def build_corpus(self, tweet):
+        self.twitter_corpus.append(tweet)
+
+    # pull a random one then delete it so we dont duplicate it
+    def get_random_tweet(self):
+        tweet = random.choice(self.twitter_corpus)
+        index = self.twitter_corpus.index(tweet)
+        self.twitter_corpus.remove(index)
+        return tweet
