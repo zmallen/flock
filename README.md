@@ -50,5 +50,11 @@ Connect to channel and type these commands out:
 
 ?campaign botname url -> Posts a campaign to only botname, shortens URL given
 
+?tweettimes botname -> Posts tweettimes for bot botname on that specific day
+
 
 A *campaign* is when an app takes 1 or all of its bots and retrieves that current time's top 10 trends. It then generates a shortened URL for each bot, and then posts a tweet according with that hashtag from the top 10 trends. It then waits a pseudo-random time to tweet again. This is all done asynchronously so bots do not need to depend on each other.
+
+TODO
+===
+Hashtag hijacking

@@ -14,6 +14,7 @@ class TwitterBot:
         self.acc_k = acc_k
         self.acc_s = acc_s
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
+        self.last_intervals = []
         self.last_tweet = ""
 
     def tweet(self,msg):

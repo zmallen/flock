@@ -1,6 +1,7 @@
 import irc.bot
 import irc.strings
 import json
+import time
 import syslog
 import requests 
 import gevent
@@ -75,6 +76,15 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                     self.msg_channel(c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
             else:
                 self.msg_channel(c, "usage: ?tweet botname msg")
+        elif a[0] == "?tweettimes":
+            #?tweettimes botname
+            if len(a) >= 2:
+                bot = self.get_bot(a[1])
+                if bot:
+                    s = ' '.join([ str(datetime.fromtimestamp(interval)) for interval in bot.last_intervals ])
+                    self.msg_channel(c, "times for %s -> %s" % (bot.name, s))
+                else:
+                    self.msg_channel(c, "usage: ?tweettimes botname")
 
     def random_char(self, y):
         return ''.join(random.choice(string.ascii_letters) for x in range(y))
@@ -149,9 +159,12 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         # get each bot, and use gevent to spawn_later tasks based on the week_type with a random tweet
         for bot in self.bot_list:
            intervals = [ self.randtime(mindt, maxdt) for x in xrange(self.scheduled_tweets[week_type]['num_tweets']) ]
+           s = ' '.join([ str(datetime.fromtimestamp(interval)) for interval in intervals ])
+           syslog.syslog('%s times to tweet -> %s' % (bot.name, s))
+           bot.last_intervals = intervals
            # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
            # and then pull a random tweet from the corpus
-           map(lambda time: gevent.spawn_later(time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet), intervals)
+           map(lambda time: gevent.spawn_later(time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet()), intervals)
         # reset corpus
         self.twitter_corpus = []
 
@@ -164,28 +177,37 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def build_streamer(self):
         # choose a random bot to get stream from
         bot = random.choice(self.bot_list)
+        syslog.syslog('choosing %s for api credentials' % (bot.name))
         bot_stream = TwitterAPI(bot.con_k, bot.con_s, bot.acc_k, bot.acc_s)
         # get max_tweets tweets then stop
+        halfway = False
         for tweet in self.stream(bot_stream):
             self.build_corpus(tweet)
-            if len(self.twitter_corpus) >= max_tweets:
+            if len(self.twitter_corpus) >= self.max_tweets/2 and not halfway:
+                halfway = True
+                syslog.syslog('%s halfway building streamer' % (self.nickname))
+            if len(self.twitter_corpus) >= self.max_tweets:
+                syslog.syslog('%s streamer complete' % (self.nickname))
                 break
 
     def stream(self, bot_stream):  
         syslog.syslog('%s nodehead building streamer' % (self.nickname))
-        request = bot_stream.request("statuses/sample", {"language":"en:"})
+        request = bot_stream.request("statuses/sample", {"language":"en"})
         return request.get_iterator()
 
     def build_corpus(self, tweet):
-        self.twitter_corpus.append(tweet)
+        # check for text and no at mentions to avoid some awkward convos
+        if 'text' in tweet and not tweet['entities']['user_mentions']:
+            s = str(tweet['text'])
+            syslog.syslog('adding tweet to corpus -> %s' % (s))
+            self.twitter_corpus.append(s)
 
     # pull a random one then delete it so we dont duplicate it
     def get_random_tweet(self):
         tweet = random.choice(self.twitter_corpus)
-        index = self.twitter_corpus.index(tweet)
-        self.twitter_corpus.remove(index)
-        return tweet
+        self.twitter_corpus.remove(tweet)
+        return str(tweet)
 
     def run_scheduler(self):
-        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
+        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=10, minute=55, second=0), self.look_human)
         self.scheduler.run_forever(start_at='once')
