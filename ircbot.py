@@ -24,9 +24,8 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         # if its a weekend, tweet between 12 and 10 for a total of 7 times
         self.scheduled_tweets = { 'weekday': { 'num_tweets':5, 'times':[8,17] }, 'weekend': { 'num_tweets':7, 'times':[12,10] } }
         # start scheduler
-        scheduler = greenclock.Scheduler(logger_name='flocker')
-        scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
-        scheduler.run_forever(start_at='once')
+        self.scheduler = greenclock.Scheduler(logger_name='flocker')
+        gevent.spawn(self.run_scheduler)
         # corpus of tweets from the day
         self.twitter_corpus = []
         self.max_tweets = 100
@@ -153,7 +152,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
            # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
            # and then pull a random tweet from the corpus
            map(lambda time: gevent.spawn_later(time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet), intervals)
-        # reset
+        # reset corpus
         self.twitter_corpus = []
 
     def randtime(self, mindt, maxdt):
@@ -173,6 +172,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 break
 
     def stream(self, bot_stream):  
+        syslog.syslog('%s nodehead building streamer' % (self.nickname))
         request = bot_stream.request("statuses/sample", {"language":"en:"})
         return request.get_iterator()
 
@@ -185,3 +185,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         index = self.twitter_corpus.index(tweet)
         self.twitter_corpus.remove(index)
         return tweet
+
+    def run_scheduler(self):
+        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
+        self.scheduler.run_forever(start_at='once')

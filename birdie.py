@@ -21,6 +21,7 @@ class TwitterBot:
             # > 140 char detection
             if len(msg) > 140:
                 msg = msg[0:139]
+            syslog.syslog('%s is tweeting %s' % (self.name, msg))
             self.twitter.update_status(status=msg)
             self.last_tweet = msg
 
@@ -36,7 +37,7 @@ class TwitterBot:
             gevent.sleep(random.randint(60,90))
 def main():
     reload(sys)
-    sys.setdefaultencoding("utf-8")
+    sys.setdefaultencoding('utf-8')
     # get bot info
     with open('bots.csv', 'r') as bot_file:
         try:
@@ -44,14 +45,19 @@ def main():
             # get lines and filter out comments or misconfigured lines
             lines = [ l.rstrip() for l in read_in if not l.startswith("#") and (l.startswith("bot=") or l.startswith("irc=")) ]
             if len(lines) <= 0:
-               raise Exception("Could not load any bots from bot_file") 
+                s = 'Could not load any bots from bot_file'
+                syslog.syslog('ERROR: %s' % s)
+                raise Exception(s) 
             # read in irc info, will always read first one
             irc_lines = [ l for l in lines if l.startswith("irc=") ]
             if len(irc_lines) <= 0:
-                raise Exception("Could not load IRC info from bot_file")
+                s = 'Could not load IRC info from bot_file'
+                syslog.syslog('ERROR: %s' % s)
+                raise Exception(s)
             # remove irc_line from lines
             map(lambda x: lines.remove(x), irc_lines)
             irc_serv, irc_chan, irc_name = irc_lines[0].split("=")[1].split(",")
+            syslog.syslog('Loaded bot %s, connecting to %s and channel %s' % (irc_name, irc_serv, irc_chan))
             # spawn the bots, give them 45 seconds to connect to twitter then return the object 
             # we will wait and start the thread for irc as our main event loop
             jobs = [ gevent.spawn(spawn_bots, line) for line in lines ]
