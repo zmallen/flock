@@ -209,5 +209,5 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         return str(tweet)
 
     def run_scheduler(self):
-        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=10, minute=55, second=0), self.look_human)
+        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
         self.scheduler.run_forever(start_at='once')

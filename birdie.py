@@ -15,6 +15,8 @@ class TwitterBot:
         self.acc_s = acc_s
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
         self.last_intervals = []
+        # total number of trends you want to tweet
+        self.num_trends = 3
         self.last_tweet = ""
 
     def tweet(self,msg):
@@ -23,12 +25,15 @@ class TwitterBot:
             if len(msg) > 140:
                 msg = msg[0:139]
             syslog.syslog('%s is tweeting %s' % (self.name, msg))
-            self.twitter.update_status(status=msg)
-            self.last_tweet = msg
+            try:
+                self.twitter.update_status(status=msg)
+                self.last_tweet = msg
+            except Exception as e:
+                syslog.syslog('%s error tweeting -> %s' % (self.name, str(e)))
 
     def get_global_trends(self):
         trends = self.twitter.get_place_trends(id=1)
-        ret = [ trend['name'] for trend in trends[0].get('trends') ]
+        ret = [ trend['name'] for trend in trends[0].get('trends') ][:self.num_trends]
         return ','.join(ret)
 
     def post_campaign(self, url):
