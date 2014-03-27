@@ -40,7 +40,7 @@ def finish():
 	bot_name = twitter2.verify_credentials()['screen_name']
 	# write out and update our csv file
 	with open("bots.csv", "a") as f:
-		f.write("bot=%s,%s,%s,%s,%s" % (bot_name, API_KEY, API_SECRET, access_key, access_secret))
+		f.write("bot=%s,%s,%s,%s,%s\n" % (bot_name, API_KEY, API_SECRET, access_key, access_secret))
 	return "Success!"
 
 if __name__ == '__main__':
