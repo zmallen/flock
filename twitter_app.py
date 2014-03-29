@@ -7,8 +7,8 @@ from redis import Redis
 app = Flask(__name__)
 r = Redis()
 
-API_KEY = "qrMVReFylFb4aQVqZFfzxw"
-API_SECRET = "BcULFEskAWKYMRevP7pNB80eA4K1LnP0HDcbGTTlw"
+API_KEY = "KilopmgRD2GDrqpazVH8A"
+API_SECRET = "R95DAJp3UXXS0NMOSuyWdgzdeaVB6egNg8glgpq6P8"
 
 @app.route("/twitter", methods=["GET"])
 def display():
