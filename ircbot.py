@@ -23,7 +23,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         self.bot_list = bot_list
         # if its a weekday, tweet between 9 and 5 for a total of 5 times
         # if its a weekend, tweet between 12 and 10 for a total of 7 times
-        self.scheduled_tweets = { 'weekday': { 'num_tweets':5, 'times':[8,17] }, 'weekend': { 'num_tweets':7, 'times':[12,10] } }
+        self.scheduled_tweets = { 'weekday': { 'num_tweets':5, 'times':[8,17] }, 'weekend': { 'num_tweets':7, 'times':[12,22] } }
         # start scheduler
         self.scheduler = greenclock.Scheduler(logger_name='flocker')
         gevent.spawn(self.run_scheduler)
@@ -169,6 +169,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         self.twitter_corpus = []
 
     def randtime(self, mindt, maxdt):
+        syslog.syslog('mindt -> %s maxdt -> %s' % (str(mindt), str(maxdt)))
         return randint(int(mindt.strftime('%s')), int(maxdt.strftime('%s')))
 
     def get_weektime(self, weekdaynum):
