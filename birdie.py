@@ -4,6 +4,7 @@ from twython import Twython, TwythonError
 from ircbot import IrcNodeHead
 import json
 import syslog
+import random
 import sys
 
 class TwitterBot:
@@ -38,6 +39,8 @@ class TwitterBot:
 
     def post_campaign(self, url):
         trends = self.get_global_trends().split(',')
+        # sleep in beginning
+        gevent.sleep(random.randint(120,300))
         for trend in trends:
             self.tweet('%s %s' % (trend, url))
             gevent.sleep(random.randint(300,900))
