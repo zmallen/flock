@@ -116,7 +116,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
             gevent.joinall(jobs, timeout=27301)
             # should log here: time start, time end, bot,url combos for tracking
-            self.msg_channel(c, "Campaign complete")
+            self.msg_channel(c, "Campaign queued")
         else:
             # if its for a specific bot name, then check to see if this bot has that handle authenticated, then work
             bot = self.get_bot(campaign_type)

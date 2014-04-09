@@ -58,3 +58,5 @@ A *campaign* is when an app takes 1 or all of its bots and retrieves that curren
 TODO
 ===
 Hashtag hijacking
+Mongo integration
+greenclock scheduler for campaigns

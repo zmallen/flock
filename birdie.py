@@ -6,6 +6,8 @@ import json
 import syslog
 import random
 import sys
+from datetime import datetime, date, time, timedelta
+from random import randint
 
 class TwitterBot:
     def __init__(self, name, con_k, con_s, acc_k, acc_s):
@@ -18,6 +20,8 @@ class TwitterBot:
         self.last_intervals = []
         # total number of trends you want to tweet
         self.num_trends = 3
+        # number of seconds in a campaign window
+        self.campaign_window = 600
         self.last_tweet = ""
 
     def tweet(self,msg):
@@ -39,11 +43,19 @@ class TwitterBot:
 
     def post_campaign(self, url):
         trends = self.get_global_trends().split(',')
-        # sleep in beginning
-        gevent.sleep(random.randint(120,300))
-        for trend in trends:
-            self.tweet('%s %s' % (trend, url))
-            gevent.sleep(random.randint(300,900))
+        # get minimum datetime and maximum datetime to spawn intervals in between them
+        # current time
+        mindt = datetime.now()
+        maxdt = mindt + timedelta(seconds=self.campaign_window)
+        # get num_trends intervals for num_trends tweets
+        intervals = [ self.randtime(mindt, maxdt) for x in xrange(self.num_trends) ]
+        # zip the intervals and the trends
+        tweet_zips = zip(intervals, trends) 
+        map(lambda interval_tuple: gevent.spawn_later(interval_tuple[0] - int(mindt.strftime('%s')), self.tweet, interval_tuple[1] + ' ' + url), tweet_zips)
+
+    def randtime(self, mindt, maxdt):
+        return randint(int(mindt.strftime('%s')), int(maxdt.strftime('%s')))
+
 def main():
     reload(sys)
     sys.setdefaultencoding('utf-8')
