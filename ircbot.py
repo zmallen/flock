@@ -10,7 +10,8 @@ import random
 import syslog
 from random import randint
 import greenclock
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
+from random import randint
 from TwitterAPI import TwitterAPI
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
@@ -47,8 +48,8 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
     # need a lazy generator here because irc wont take anything over 512 bytes / message        
     def chunk_msg(self, msg):
-        for i in xrange(0, len(msg), 511):
-            yield msg[i:i+511]
+        for i in xrange(0, len(msg),300):
+            yield msg[i:i+300]
 
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(" ")
@@ -93,8 +94,8 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         campaign = msg
         print campaign
         #?campaign all|botname url
-        if(len(campaign) != 3):
-            self.msg_channel(c, "usage: ?campaign all|botname")
+        if(len(campaign) < 3 or len(campaign) > 4):
+            self.msg_channel(c, "usage: ?campaign (all|#hashtag|botname) (url)")
             return
         campaign_type = campaign[1]
         campaign_url = campaign[2]
@@ -116,7 +117,23 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
             gevent.joinall(jobs, timeout=27301)
             # should log here: time start, time end, bot,url combos for tracking
-            self.msg_channel(c, "Campaign queued")
+            self.msg_channel(c, "Campaign complete")
+        if campaign_type.startswith('#'):
+            self.msg_channel(c, "attacking hashtag " + campaign_type)
+            shortened = self.shorten(campaign_url)
+            if(shortened.startswith('error')):
+                self.msg_channel('error shortening %s -> %s' % (campaign_url, shortened))
+            else:
+                mindt = datetime.now()
+                # get first bot in our lists campaign window for sanity's sake
+                maxdt = mindt + timedelta(seconds=self.bot_list[0].campaign_window)
+                intervals = [ self.randtime(mindt, maxdt) for x in xrange(len(self.bot_list)) ]
+                tweet_zips = zip(intervals, self.bot_list) 
+                #print 'tweet_zips -> ' % tweet_zips
+                for interval in xrange(0, len(intervals)):
+                    gevent.spawn_later(intervals[interval] - int(mindt.strftime('%s')), self.bot_list[interval].tweet, campaign_type + ' ' + shortened)
+               # map(lambda interval_tuple: gevent.spawn_later(interval_tuple[0] - int(mindt.strftime('%s')), interval_tuple[1].tweet, campaign_type + ' ' + shortened), tweet_zips)
+
         else:
             # if its for a specific bot name, then check to see if this bot has that handle authenticated, then work
             bot = self.get_bot(campaign_type)
