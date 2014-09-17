@@ -50,6 +50,8 @@ Connect to channel and type these commands out:
 
 ?campaign botname url -> Posts a campaign to only botname, shortens URL given
 
+?campaign #hashtag url -> Posts a campaign to a specific hashtag to ALL that bots that the app owns, and shortens URL given
+
 ?tweettimes botname -> Posts tweettimes for bot botname on that specific day
 
 
@@ -57,8 +59,6 @@ A *campaign* is when an app takes 1 or all of its bots and retrieves that curren
 
 TODO
 ===
-Hashtag hijacking
-
 Mongo integration
 
 Retweet storms

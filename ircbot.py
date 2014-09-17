@@ -3,7 +3,7 @@ import irc.strings
 import json
 import time
 import syslog
-import requests 
+import requests
 import gevent
 import string
 import random
@@ -14,17 +14,20 @@ from datetime import datetime, time, date, timedelta
 from random import randint
 from TwitterAPI import TwitterAPI
 
+
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
     def __init__(self, channel, nickname, server, port, bot_list):
-        irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
+        irc.bot.SingleServerIRCBot.__init__(
+            self, [(server, port)], nickname, nickname)
         self.nickname = nickname
         self.channel = channel
         self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
         self.bot_list = bot_list
         # if its a weekday, tweet between 9 and 5 for a total of 5 times
         # if its a weekend, tweet between 12 and 10 for a total of 7 times
-        self.scheduled_tweets = { 'weekday': { 'num_tweets':5, 'times':[8,17] }, 'weekend': { 'num_tweets':7, 'times':[12,22] } }
+        self.scheduled_tweets = {'weekday': {'num_tweets': 5, 'times': [
+            8, 17]}, 'weekend': {'num_tweets': 7, 'times': [12, 22]}}
         # start scheduler
         self.scheduler = greenclock.Scheduler(logger_name='flocker')
         gevent.spawn(self.run_scheduler)
@@ -46,10 +49,11 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         else:
             c.privmsg(self.channel, msg)
 
-    # need a lazy generator here because irc wont take anything over 512 bytes / message        
+    # need a lazy generator here because irc wont take anything over 512 bytes
+    # / message
     def chunk_msg(self, msg):
-        for i in xrange(0, len(msg),300):
-            yield msg[i:i+300]
+        for i in xrange(0, len(msg), 300):
+            yield msg[i:i + 300]
 
     def on_pubmsg(self, c, e):
         a = e.arguments[0].split(" ")
@@ -72,9 +76,11 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 bot = self.get_bot(a[1])
                 if bot:
                     bot.tweet(' '.join(a[2:]))
-                    self.msg_channel(c, 'Tweeted on http://twitter.com/%s' % bot.name)
+                    self.msg_channel(
+                        c, 'Tweeted on http://twitter.com/%s' % bot.name)
                 else:
-                    self.msg_channel(c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
+                    self.msg_channel(
+                        c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
             else:
                 self.msg_channel(c, "usage: ?tweet botname msg")
         elif a[0] == "?tweettimes":
@@ -82,7 +88,8 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             if len(a) >= 2:
                 bot = self.get_bot(a[1])
                 if bot:
-                    s = ' '.join([ str(datetime.fromtimestamp(interval)) for interval in bot.last_intervals ])
+                    s = ' '.join([str(datetime.fromtimestamp(interval))
+                                  for interval in bot.last_intervals])
                     self.msg_channel(c, "times for %s -> %s" % (bot.name, s))
                 else:
                     self.msg_channel(c, "usage: ?tweettimes botname")
@@ -95,11 +102,13 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         print campaign
         #?campaign all|botname url
         if(len(campaign) < 3 or len(campaign) > 4):
-            self.msg_channel(c, "usage: ?campaign (all|#hashtag|botname) (url)")
+            self.msg_channel(
+                c, "usage: ?campaign (all|#hashtag|botname) (url)")
             return
         campaign_type = campaign[1]
         campaign_url = campaign[2]
-        # if its a campaign for all the bots this bot controls, generate a short url for each one
+        # if its a campaign for all the bots this bot controls, generate a
+        # short url for each one
         if campaign_type == "all":
             self.msg_channel(c, "starting all..")
             # get unique shortened urls for each bot
@@ -107,38 +116,45 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             for i in range(len(self.bot_list)):
                 shortened = self.shorten(campaign_url)
                 if shortened.startswith('error'):
-                    self.msg_channel('error shortening %s -> %s' % (campaign_url, shortened))
+                    self.msg_channel(
+                        'error shortening %s -> %s' % (campaign_url, shortened))
                     return
                 else:
                     urls.append(shortened)
             # create a dict of tuples of urls to bots
             url_tuples = dict(zip(self.bot_list, urls))
             # asynchronously post to twitter
-            jobs = [ gevent.spawn(bot.post_campaign, url) for bot, url in url_tuples.iteritems() ]
+            jobs = [gevent.spawn(bot.post_campaign, url)
+                    for bot, url in url_tuples.iteritems()]
             gevent.joinall(jobs, timeout=27301)
-            # should log here: time start, time end, bot,url combos for tracking
+            # should log here: time start, time end, bot,url combos for
+            # tracking
             self.msg_channel(c, "Campaign complete")
         if campaign_type.startswith('#'):
             self.msg_channel(c, "attacking hashtag " + campaign_type)
             shortened = self.shorten(campaign_url)
             if(shortened.startswith('error')):
-                self.msg_channel('error shortening %s -> %s' % (campaign_url, shortened))
+                self.msg_channel('error shortening %s -> %s' %
+                                 (campaign_url, shortened))
             else:
                 mindt = datetime.now()
                 # get first bot in our lists campaign window for sanity's sake
-                maxdt = mindt + timedelta(seconds=self.bot_list[0].campaign_window)
-                intervals = [ self.randtime(mindt, maxdt) for x in xrange(len(self.bot_list)) ]
-                tweet_zips = zip(intervals, self.bot_list) 
-                #print 'tweet_zips -> ' % tweet_zips
+                maxdt = mindt + \
+                    timedelta(seconds=self.bot_list[0].campaign_window)
+                intervals = [self.randtime(mindt, maxdt)
+                             for x in xrange(len(self.bot_list))]
+                tweet_zips = zip(intervals, self.bot_list)
                 for interval in xrange(0, len(intervals)):
-                    gevent.spawn_later(intervals[interval] - int(mindt.strftime('%s')), self.bot_list[interval].tweet, campaign_type + ' ' + shortened)
-               # map(lambda interval_tuple: gevent.spawn_later(interval_tuple[0] - int(mindt.strftime('%s')), interval_tuple[1].tweet, campaign_type + ' ' + shortened), tweet_zips)
+                    gevent.spawn_later(intervals[interval] - int(mindt.strftime('%s')), self.bot_list[
+                                       interval].tweet, campaign_type + ' ' + shortened)
 
         else:
-            # if its for a specific bot name, then check to see if this bot has that handle authenticated, then work
+            # if its for a specific bot name, then check to see if this bot has
+            # that handle authenticated, then work
             bot = self.get_bot(campaign_type)
             if bot is None:
-                self.msg_channel(c, "cannot find %s in bot_list" % campaign_type)
+                self.msg_channel(
+                    c, "cannot find %s in bot_list" % campaign_type)
                 return
             # post single campaign
             bot.post_campaign(self.shorten(campaign_url))
@@ -153,7 +169,8 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def shorten(self, url):
         payload = {'longUrl': url + "?" + self.random_char(5)}
         headers = {'content-type': 'application/json'}
-        r = requests.post(self.post_url, data=json.dumps(payload), headers=headers)
+        r = requests.post(
+            self.post_url, data=json.dumps(payload), headers=headers)
         if 'id' in r.text:
             return json.loads(r.text)['id'].rstrip()
         else:
@@ -163,25 +180,30 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         syslog.syslog('Looking human for %s' % self.nickname)
         # build a streamer of a sample of tweets
         self.build_streamer()
-        ## schedule each bot to tweet a random tweet pulled from corpus at random specified time depending on if its a weekday or not
+        # schedule each bot to tweet a random tweet pulled from corpus at random specified time depending on if its a weekday or not
         # get todays date
-        today = date.today() 
+        today = date.today()
         # get whether its a weekday or weekend
         week_type = self.get_weektime(today.weekday())
-        # get minimum datetime and maximum datetime to spawn intervals in between them
+        # get minimum datetime and maximum datetime to spawn intervals in
+        # between them
         mintime = time(self.scheduled_tweets[week_type]['times'][0], 0)
         mindt = datetime.combine(today, mintime)
         maxtime = time(self.scheduled_tweets[week_type]['times'][1], 0)
         maxdt = datetime.combine(today, maxtime)
-        # get each bot, and use gevent to spawn_later tasks based on the week_type with a random tweet
+        # get each bot, and use gevent to spawn_later tasks based on the
+        # week_type with a random tweet
         for bot in self.bot_list:
-           intervals = [ self.randtime(mindt, maxdt) for x in xrange(self.scheduled_tweets[week_type]['num_tweets']) ]
-           s = ' '.join([ str(datetime.fromtimestamp(interval)) for interval in intervals ])
-           syslog.syslog('%s times to tweet -> %s' % (bot.name, s))
-           bot.last_intervals = intervals
-           # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
-           # and then pull a random tweet from the corpus
-           map(lambda time: gevent.spawn_later(time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet()), intervals)
+            intervals = [self.randtime(mindt, maxdt) for x in xrange(
+                self.scheduled_tweets[week_type]['num_tweets'])]
+            s = ' '.join([str(datetime.fromtimestamp(interval))
+                          for interval in intervals])
+            syslog.syslog('%s times to tweet -> %s' % (bot.name, s))
+            bot.last_intervals = intervals
+            # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
+            # and then pull a random tweet from the corpus
+            map(lambda time: gevent.spawn_later(
+                time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet()), intervals)
         # reset corpus
         self.twitter_corpus = []
 
@@ -189,7 +211,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         return randint(int(mindt.strftime('%s')), int(maxdt.strftime('%s')))
 
     def get_weektime(self, weekdaynum):
-       return 'weekday' if weekdaynum < 5 else 'weekend' 
+        return 'weekday' if weekdaynum < 5 else 'weekend'
 
     def build_streamer(self):
         # choose a random bot to get stream from
@@ -200,16 +222,16 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         halfway = False
         for tweet in self.stream(bot_stream):
             self.build_corpus(tweet)
-            if len(self.twitter_corpus) >= self.max_tweets/2 and not halfway:
+            if len(self.twitter_corpus) >= self.max_tweets / 2 and not halfway:
                 halfway = True
                 syslog.syslog('%s halfway building streamer' % (self.nickname))
             if len(self.twitter_corpus) >= self.max_tweets:
                 syslog.syslog('%s streamer complete' % (self.nickname))
                 break
 
-    def stream(self, bot_stream):  
+    def stream(self, bot_stream):
         syslog.syslog('%s nodehead building streamer' % (self.nickname))
-        request = bot_stream.request("statuses/sample", {"language":"en"})
+        request = bot_stream.request("statuses/sample", {"language": "en"})
         return request.get_iterator()
 
     def build_corpus(self, tweet):
@@ -226,5 +248,6 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         return str(tweet)
 
     def run_scheduler(self):
-        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(hour=7, minute=0, second=0), self.look_human)
+        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(
+            hour=7, minute=0, second=0), self.look_human)
         self.scheduler.run_forever(start_at='once')

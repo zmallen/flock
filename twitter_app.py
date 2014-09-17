@@ -7,12 +7,12 @@ from redis import Redis
 app = Flask(__name__)
 r = Redis()
 
-API_KEY = "KilopmgRD2GDrqpazVH8A"
-API_SECRET = "R95DAJp3UXXS0NMOSuyWdgzdeaVB6egNg8glgpq6P8"
+API_KEY = ""
+API_SECRET = ""
 
 @app.route("/twitter", methods=["GET"])
 def display():
-	#Create Twitter API instance	
+	#Create Twitter API instance
 	twitter = Twython(app_key=API_KEY, app_secret=API_SECRET)
 	#Get auth url
 	auth = twitter.get_authentication_tokens(callback_url='http://54.186.196.187/twitterfinish')
