@@ -1,10 +1,8 @@
 flock
 =====
 
-Project for Chaim/Zack
-
-*DEBIAN*
-
+Debian
+=====
 apt-get install libevent-dev python-dev tmux
 
 pip install twython gevent irc flask redis greenclock TwitterAPI
@@ -31,8 +29,14 @@ Making your botnet Application
 10. Once verified, go to www.dev.twitter.com and create your app. Make sure to assign all permissions to read, write execute (full)
 11. Done! Run the flask app (twitter_app.py), and edit the callback IP to some VPS
 12. Once running, follow steps 2-8 and add/authorize the app through your new bots
-13. Once you have enough, add an irc server in the csv, format is: irc=server:port,#channel,botname
-14. Success!
+13. Once you have enough, add an irc server in bots.csv, format is: irc=server:port,#channel,botname
+14. Add bots in your bots.csv file by adding:
+bot=botname,appkey,appsecret,access_token,access_secret
+authenticating via twitter_app.py automatically adds these lines
+15. Edit settings.py and change your botmasters list to a csv list of 'trusted' usernames
+16. Run 'python birdie.py'
+17. When your irc bot connects to the channel, make sure your name is the name of the 'botmaster' in settings.py
+18. Refer your bot and give it a command, if my bots name is 'kazooie', i will say: 'kazooie: ?botlist' and if my username is a botmaster in settings.py, he will reply!
 
 Running flock
 ====

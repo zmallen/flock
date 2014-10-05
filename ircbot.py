@@ -8,6 +8,7 @@ import gevent
 import string
 import random
 import syslog
+import settings
 from random import randint
 import greenclock
 from datetime import datetime, time, date, timedelta
@@ -33,6 +34,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         gevent.spawn(self.run_scheduler)
         # corpus of tweets from the day
         self.twitter_corpus = []
+        self.auth_masters = settings.botmasters.split(',')
         self.max_tweets = 100
 
     def on_nicknameinuse(self, c, e):
@@ -56,7 +58,13 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             yield msg[i:i + 300]
 
     def on_pubmsg(self, c, e):
-        a = e.arguments[0].split(" ")
+        a = e.arguments[0].split(":", 1)
+        if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
+            if e.source.nick in self.auth_masters:
+                a = ''.join(a[1:]).strip()
+                a = a.split(' ')
+            else:
+                return
         if a[0] == "?botlist":
             msg = ','.join([b.name for b in self.bot_list])
             self.msg_channel(c, msg)
