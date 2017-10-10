@@ -10,7 +10,6 @@ import random
 import syslog
 import settings
 from random import randint
-import greenclock
 from datetime import datetime, time, date, timedelta
 from random import randint
 from TwitterAPI import TwitterAPI
@@ -18,24 +17,15 @@ from TwitterAPI import TwitterAPI
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
-    def __init__(self, channel, nickname, server, port, bot_list):
+    def __init__(self, channel, nickname, server, port):
         irc.bot.SingleServerIRCBot.__init__(
             self, [(server, port)], nickname, nickname)
         self.nickname = nickname
+        self.auth_masters = settings.botmasters.split(',')
         self.channel = channel
         self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
-        self.bot_list = bot_list
-        # if its a weekday, tweet between 9 and 5 for a total of 5 times
-        # if its a weekend, tweet between 12 and 10 for a total of 7 times
-        self.scheduled_tweets = {'weekday': {'num_tweets': 5, 'times': [
-            8, 17]}, 'weekend': {'num_tweets': 7, 'times': [12, 22]}}
-        # start scheduler
-        self.scheduler = greenclock.Scheduler(logger_name='flocker')
-        gevent.spawn(self.run_scheduler)
         # corpus of tweets from the day
         self.twitter_corpus = []
-        self.auth_masters = settings.botmasters.split(',')
-        self.max_tweets = 100
 
     def on_nicknameinuse(self, c, e):
         c.nick(c.get_nickname() + "_")
@@ -58,13 +48,10 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             yield msg[i:i + 300]
 
     def on_pubmsg(self, c, e):
+        if e.source.nick not in self.auth_masters:
+            return
+	import ipdb; ipdb.set_trace()
         a = e.arguments[0].split(":", 1)
-        if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
-            if e.source.nick in self.auth_masters:
-                a = ''.join(a[1:]).strip()
-                a = a.split(' ')
-            else:
-                return
         if a[0] == "?botlist":
             msg = ','.join([b.name for b in self.bot_list])
             self.msg_channel(c, msg)
@@ -74,10 +61,6 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 self.msg_channel(c, self.shorten(url))
             else:
                 self.msg_channel(c, "usage: ?shorten url")
-        elif a[0] == "?campaign":
-            self.make_campaign(c, a)
-        elif a[0] == "?gettrends":
-            self.msg_channel(c, str(self.bot_list[0].get_global_trends()))
         elif a[0] == "?tweet":
             #?tweet botname msg
             if len(a) >= 3:
@@ -91,17 +74,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                         c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
             else:
                 self.msg_channel(c, "usage: ?tweet botname msg")
-        elif a[0] == "?tweettimes":
-            #?tweettimes botname
-            if len(a) >= 2:
-                bot = self.get_bot(a[1])
-                if bot:
-                    s = ' '.join([str(datetime.fromtimestamp(interval))
-                                  for interval in bot.last_intervals])
-                    self.msg_channel(c, "times for %s -> %s" % (bot.name, s))
-                else:
-                    self.msg_channel(c, "usage: ?tweettimes botname")
-
+        
     def random_char(self, y):
         return ''.join(random.choice(string.ascii_letters) for x in range(y))
 
@@ -184,37 +157,6 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         else:
             return 'error %s' % r
 
-    def look_human(self):
-        syslog.syslog('Looking human for %s' % self.nickname)
-        # build a streamer of a sample of tweets
-        self.build_streamer()
-        # schedule each bot to tweet a random tweet pulled from corpus at random specified time depending on if its a weekday or not
-        # get todays date
-        today = date.today()
-        # get whether its a weekday or weekend
-        week_type = self.get_weektime(today.weekday())
-        # get minimum datetime and maximum datetime to spawn intervals in
-        # between them
-        mintime = time(self.scheduled_tweets[week_type]['times'][0], 0)
-        mindt = datetime.combine(today, mintime)
-        maxtime = time(self.scheduled_tweets[week_type]['times'][1], 0)
-        maxdt = datetime.combine(today, maxtime)
-        # get each bot, and use gevent to spawn_later tasks based on the
-        # week_type with a random tweet
-        for bot in self.bot_list:
-            intervals = [self.randtime(mindt, maxdt) for x in xrange(
-                self.scheduled_tweets[week_type]['num_tweets'])]
-            s = ' '.join([str(datetime.fromtimestamp(interval))
-                          for interval in intervals])
-            syslog.syslog('%s times to tweet -> %s' % (bot.name, s))
-            bot.last_intervals = intervals
-            # assign the gevent to spawn_later by mapping each interval generated, find the time delta to determine number of seconds until event
-            # and then pull a random tweet from the corpus
-            map(lambda time: gevent.spawn_later(
-                time - int(datetime.now().strftime('%s')), bot.tweet, self.get_random_tweet()), intervals)
-        # reset corpus
-        self.twitter_corpus = []
-
     def randtime(self, mindt, maxdt):
         return randint(int(mindt.strftime('%s')), int(maxdt.strftime('%s')))
 
@@ -254,8 +196,3 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         tweet = random.choice(self.twitter_corpus)
         self.twitter_corpus.remove(tweet)
         return str(tweet)
-
-    def run_scheduler(self):
-        self.scheduler.schedule('tweet_to_look_human', greenclock.every_hour(
-            hour=7, minute=0, second=0), self.look_human)
-        self.scheduler.run_forever(start_at='once')

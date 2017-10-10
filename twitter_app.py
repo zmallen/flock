@@ -7,15 +7,15 @@ from redis import Redis
 app = Flask(__name__)
 r = Redis()
 
-API_KEY = ""
-API_SECRET = ""
+API_KEY = "1haTEhE6yNlSWlMw30xAGRslc"
+API_SECRET = "iXSzM8FHwbaUXZQtvxXjB0slVTLrshhGmn8oDDFANyXlEzJ3fc"
 
 @app.route("/twitter", methods=["GET"])
 def display():
 	#Create Twitter API instance
 	twitter = Twython(app_key=API_KEY, app_secret=API_SECRET)
 	#Get auth url
-	auth = twitter.get_authentication_tokens(callback_url='http://54.186.196.187/twitterfinish')
+	auth = twitter.get_authentication_tokens(callback_url='http://138.197.113.54:8080/twitterfinish')
 	#Save off token and secret for later use. Could be saved in cookies.
 	r.set("twitter:token", auth['oauth_token'])
 	r.set("twitter:secret", auth['oauth_token_secret'])
@@ -40,8 +40,8 @@ def finish():
 	bot_name = twitter2.verify_credentials()['screen_name']
 	# write out and update our csv file
 	with open("bots.csv", "a") as f:
-		f.write("bot=%s,%s,%s,%s,%s\n" % (bot_name, API_KEY, API_SECRET, access_key, access_secret))
+		f.write("%s,%s,%s,%s,%s\n" % (bot_name, API_KEY, API_SECRET, access_key, access_secret))
 	return "Success!"
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0',debug=False, port=80)
+    app.run(host='0.0.0.0',debug=False, port=8080)
