@@ -1,5 +1,7 @@
 botmasters='techyteach'
-server='irc.129irc.com'
+server=''
 port=6667
 channel='#flock'
 name='kazooie'
+API_KEY = ''
+API_SECRET = ''

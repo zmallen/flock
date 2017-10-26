@@ -3,12 +3,13 @@ from flask import render_template
 from flask import request
 from twython import Twython
 from redis import Redis
+import settings
 
 app = Flask(__name__)
 r = Redis()
 
-API_KEY = "1haTEhE6yNlSWlMw30xAGRslc"
-API_SECRET = "iXSzM8FHwbaUXZQtvxXjB0slVTLrshhGmn8oDDFANyXlEzJ3fc"
+API_KEY = settings.API_KEY
+API_SECRET = settings.API_SECRET
 
 @app.route("/twitter", methods=["GET"])
 def display():
