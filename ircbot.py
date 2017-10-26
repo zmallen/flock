@@ -13,7 +13,31 @@ from random import randint
 from datetime import datetime, time, date, timedelta
 from random import randint
 from TwitterAPI import TwitterAPI
+from twython import Twython, TwythonError
 
+class TwitterBot:
+
+    def __init__(self, name, con_k, con_s, acc_k, acc_s):
+        self.name = name
+        self.con_k = con_k
+        self.con_s = con_s
+        self.acc_k = acc_k
+        self.acc_s = acc_s
+        self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
+        self.last_intervals = []
+        self.last_tweet = ""
+
+    def tweet(self, msg):
+        if self.twitter is not None:
+            # > 140 char detection
+            if len(msg) > 140:
+                msg = msg[0:139]
+            syslog.syslog('%s is tweeting %s' % (self.name, msg))
+            try:
+                self.twitter.update_status(status=msg)
+                self.last_tweet = msg
+            except Exception as e:
+                syslog.syslog('%s error tweeting -> %s' % (self.name, str(e)))
 
 class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
@@ -47,13 +71,26 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         for i in xrange(0, len(msg), 300):
             yield msg[i:i + 300]
 
+    def get_bots(self):
+        with open('bots.csv', 'r') as fd:
+            lines = [l.replace('\n','') for l in fd.readlines()]
+        return lines
+
+    def read_botlist(self):
+        bots = self.get_bots()
+        names = []
+        for line in bots:
+            if not line.startswith('#'):
+                names.append('@' + line.split(',')[0])
+        return ','.join(names)
+            
     def on_pubmsg(self, c, e):
         if e.source.nick not in self.auth_masters:
             return
-	import ipdb; ipdb.set_trace()
         a = e.arguments[0].split(":", 1)
-        if a[0] == "?botlist":
-            msg = ','.join([b.name for b in self.bot_list])
+        command = e.arguments[0].split()[0]
+        if command == "?botlist":
+            msg = self.read_botlist()
             self.msg_channel(c, msg)
         elif a[0] == "?shorten":
             if len(a) == 2:
@@ -61,17 +98,18 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                 self.msg_channel(c, self.shorten(url))
             else:
                 self.msg_channel(c, "usage: ?shorten url")
-        elif a[0] == "?tweet":
+        elif command == "?tweet":
             #?tweet botname msg
-            if len(a) >= 3:
-                bot = self.get_bot(a[1])
+            msg = e.arguments[0].split()
+            if len(msg) > 2:
+                bot = self.get_bot(str(msg[1]))
                 if bot:
-                    bot.tweet(' '.join(a[2:]))
+                    bot.tweet(' '.join(msg[2:]))
                     self.msg_channel(
                         c, 'Tweeted on http://twitter.com/%s' % bot.name)
                 else:
                     self.msg_channel(
-                        c, "bot not in bot_list, try: " + ','.join([bot.name for bot in self.bot_list]))
+                        c, "bot not in bots.csv")
             else:
                 self.msg_channel(c, "usage: ?tweet botname msg")
         
@@ -140,12 +178,14 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             # post single campaign
             bot.post_campaign(self.shorten(campaign_url))
 
-    def get_bot(self, name):
-        bot = None
-        names = [b.name for b in self.bot_list]
-        if name in names:
-            bot = self.bot_list[names.index(name)]
-        return bot
+    def get_bot(self, handle):
+        bots = self.get_bots()
+        names = [l.split(',')[0] for l in bots]
+        if handle in names:
+            name, con_k, con_s, acc_k, acc_s = bots[names.index(handle)].split(',') 
+            return TwitterBot(name, con_k, con_s, acc_k, acc_s)
+        else:
+            return None
 
     def shorten(self, url):
         payload = {'longUrl': url + "?" + self.random_char(5)}

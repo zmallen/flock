@@ -11,30 +11,6 @@ from datetime import datetime, date, time, timedelta
 from random import randint
 
 
-class TwitterBot:
-
-    def __init__(self, name, con_k, con_s, acc_k, acc_s):
-        self.name = name
-        self.con_k = con_k
-        self.con_s = con_s
-        self.acc_k = acc_k
-        self.acc_s = acc_s
-        self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
-        self.last_intervals = []
-        self.last_tweet = ""
-
-    def tweet(self, msg):
-        if self.twitter is not None:
-            # > 140 char detection
-            if len(msg) > 140:
-                msg = msg[0:139]
-            syslog.syslog('%s is tweeting %s' % (self.name, msg))
-            try:
-                self.twitter.update_status(status=msg)
-                self.last_tweet = msg
-            except Exception as e:
-                syslog.syslog('%s error tweeting -> %s' % (self.name, str(e)))
-
 
 def main():
     reload(sys)
