@@ -14,6 +14,8 @@ from datetime import datetime, time, date, timedelta
 from random import randint
 from TwitterAPI import TwitterAPI
 from twython import Twython, TwythonError
+import base64
+
 
 class TwitterBot:
 
@@ -25,7 +27,25 @@ class TwitterBot:
         self.acc_s = acc_s
         self.twitter = Twython(self.con_k, self.con_s, self.acc_k, self.acc_s)
         self.last_intervals = []
-        self.last_tweet = ""
+        self.last_tweet = ''
+
+    def get_dms(self):
+        if self.twitter is not None:
+            dms = self.twitter.get_direct_messages()
+            return dms
+        
+    def update_image(self):
+        if self.twitter is not None:
+            with open('zf.png', 'rb') as image_file:
+                encoded_string = base64.b64encode(image_file.read())
+                results = self.twitter.update_profile_image(image=encoded_string)
+                return results
+
+    def change_name(self, name):
+        if self.twitter is not None:
+            name = name.replace('"','')
+            results = self.twitter.update_profile(name=name)
+            return results
 
     def tweet(self, msg):
         if self.twitter is not None:
@@ -47,12 +67,12 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         self.nickname = nickname
         self.auth_masters = settings.botmasters.split(',')
         self.channel = channel
-        self.post_url = "https://www.googleapis.com/urlshortener/v1/url"
+        self.post_url = 'https://www.googleapis.com/urlshortener/v1/url'
         # corpus of tweets from the day
         self.twitter_corpus = []
 
     def on_nicknameinuse(self, c, e):
-        c.nick(c.get_nickname() + "_")
+        c.nick(c.get_nickname() + '_')
 
     def on_welcome(self, c, e):
         c.join(self.channel)
@@ -60,7 +80,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def msg_channel(self, c, msg):
         if(len(msg) > 512):
             for chunk in self.chunk_msg(msg):
-                print 'chunk: ' + str(len(chunk)) + " ->" + chunk
+                print 'chunk: ' + str(len(chunk)) + ' ->' + chunk
                 c.privmsg(self.channel, chunk)
         else:
             c.privmsg(self.channel, msg)
@@ -87,18 +107,18 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
     def on_pubmsg(self, c, e):
         if e.source.nick not in self.auth_masters:
             return
-        a = e.arguments[0].split(":", 1)
+        a = e.arguments[0].split(':', 1)
         command = e.arguments[0].split()[0]
-        if command == "?botlist":
+        if command == '?botlist':
             msg = self.read_botlist()
             self.msg_channel(c, msg)
-        elif a[0] == "?shorten":
+        elif a[0] == '?shorten':
             if len(a) == 2:
                 url = a[1]
                 self.msg_channel(c, self.shorten(url))
             else:
-                self.msg_channel(c, "usage: ?shorten url")
-        elif command == "?tweet":
+                self.msg_channel(c, 'usage: ?shorten url')
+        elif command == '?tweet':
             #?tweet botname msg
             msg = e.arguments[0].split()
             if len(msg) > 2:
@@ -109,9 +129,49 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
                         c, 'Tweeted on http://twitter.com/%s' % bot.name)
                 else:
                     self.msg_channel(
-                        c, "bot not in bots.csv")
+                        c, 'bot not in bots.csv')
             else:
-                self.msg_channel(c, "usage: ?tweet botname msg")
+                self.msg_channel(c, 'usage: ?tweet botname msg')
+        elif command == '?getdms':
+            msg = e.arguments[0].split()
+            if len(msg) >= 2:
+                bot = self.get_bot(str(msg[1]))
+                if bot:
+                    dms = bot.get_dms()
+                    with open('%s_dms.json' % (bot.name), 'a') as fd:
+                        json.dump(dms, fd)
+                    last_3 = [
+                        x['text'] for x in dms[0:3]
+                    ]
+                    self.msg_channel(
+                        c, 'Downloaded DMs for %s' % (bot.name))
+                    self.msg_channel(
+                        c, 'Last 3 messages: %s' % '|'.join(last_3))
+                else:
+                    self.msg_channel(
+                        c, 'bot not in bots.csv')
+        elif command == '?changename':
+            msg = e.arguments[0].split()
+            if len(msg) >= 3:
+                bot = self.get_bot(str(msg[1]))
+                if bot:
+                    res = bot.change_name(msg[2])
+                    self.msg_channel(
+                        c, 'Successfully changed %s full name to %s' % (bot.name, msg[2]))
+                else:
+                    self.msg_channel(
+                        c, 'bot not in bots.csv')
+        elif command == '?changeimage':
+            msg = e.arguments[0].split()
+            if len(msg) >= 2:
+                bot = self.get_bot(str(msg[1]))
+                if bot:
+                    res = bot.update_image()
+                    self.msg_channel(
+                        c, 'Successfully changed %s to attack image' % (bot.name))
+                else:
+                    self.msg_channel(
+                        c, 'bot not in bots.csv')
         
     def random_char(self, y):
         return ''.join(random.choice(string.ascii_letters) for x in range(y))
@@ -122,14 +182,14 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
         #?campaign all|botname url
         if(len(campaign) < 3 or len(campaign) > 4):
             self.msg_channel(
-                c, "usage: ?campaign (all|#hashtag|botname) (url)")
+                c, 'usage: ?campaign (all|#hashtag|botname) (url)')
             return
         campaign_type = campaign[1]
         campaign_url = campaign[2]
         # if its a campaign for all the bots this bot controls, generate a
         # short url for each one
-        if campaign_type == "all":
-            self.msg_channel(c, "starting all..")
+        if campaign_type == 'all':
+            self.msg_channel(c, 'starting all..')
             # get unique shortened urls for each bot
             urls = []
             for i in range(len(self.bot_list)):
@@ -148,9 +208,9 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             gevent.joinall(jobs, timeout=27301)
             # should log here: time start, time end, bot,url combos for
             # tracking
-            self.msg_channel(c, "Campaign complete")
+            self.msg_channel(c, 'Campaign complete')
         if campaign_type.startswith('#'):
-            self.msg_channel(c, "attacking hashtag " + campaign_type)
+            self.msg_channel(c, 'attacking hashtag ' + campaign_type)
             shortened = self.shorten(campaign_url)
             if(shortened.startswith('error')):
                 self.msg_channel('error shortening %s -> %s' %
@@ -173,7 +233,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             bot = self.get_bot(campaign_type)
             if bot is None:
                 self.msg_channel(
-                    c, "cannot find %s in bot_list" % campaign_type)
+                    c, 'cannot find %s in bot_list' % campaign_type)
                 return
             # post single campaign
             bot.post_campaign(self.shorten(campaign_url))
@@ -188,7 +248,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
             return None
 
     def shorten(self, url):
-        payload = {'longUrl': url + "?" + self.random_char(5)}
+        payload = {'longUrl': url + '?' + self.random_char(5)}
         headers = {'content-type': 'application/json'}
         r = requests.post(
             self.post_url, data=json.dumps(payload), headers=headers)
@@ -221,7 +281,7 @@ class IrcNodeHead(irc.bot.SingleServerIRCBot):
 
     def stream(self, bot_stream):
         syslog.syslog('%s nodehead building streamer' % (self.nickname))
-        request = bot_stream.request("statuses/sample", {"language": "en"})
+        request = bot_stream.request('statuses/sample', {'language': 'en'})
         return request.get_iterator()
 
     def build_corpus(self, tweet):

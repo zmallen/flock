@@ -1,5 +1,4 @@
 #!/usr/bin/python
-import gevent
 from twython import Twython, TwythonError
 from ircbot import IrcNodeHead
 import json
